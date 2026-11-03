@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Hidden Collapsed Sidebar",
+    "description": "Collapsing the sidebar hides the 56px icon rail completely with a track-synchronized glide matching the right sidebar; both brand artworks are removed, and exactly one toggle is visible at any time — the sidebar's own, aligned with the conversation header's button, while expanded, the header's matching one while fully hidden. Below 768px the sidebar clones the right dock's mobile presentation: it expands as a slide-in overlay covering the frame, never squeezes the conversation, and dismisses itself when a conversation is picked; desktop keeps the original track push and expanded width."
+  }
+}

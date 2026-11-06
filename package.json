@@ -1,8 +1,8 @@
 {
   "name": "mobile-sidebar",
-  "version": "1.11.0",
+  "version": "1.12.0",
   "private": true,
-  "description": "DeepSeek Harness Web UI plugin: a collapse-to-zero left sidebar with a right-dock-matching glide, a mobile drawer overlay, and pick-to-dismiss.",
+  "description": "DeepSeek Harness Web UI plugin: a collapse-to-zero left sidebar with a right-dock-matching glide, a mobile drawer overlay, and navigation-dismiss.",
   "license": "MIT",
   "repository": {
     "type": "git",

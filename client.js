@@ -121,19 +121,24 @@ window.__ModuleLoader__.load({
 		 * autoFullscreen rule; the shell draws no page scrollbar, so the
 		 * viewport width and the frame width agree.
 		 *
-		 * On that same mobile layout, picking a conversation from the open
-		 * drawer also dismisses it: the drawer covers the whole viewport
-		 * there, so leaving it open would hide the conversation just chosen.
-		 * A document-level click listener (registered above React's root
-		 * container, so the shipped row actions that stopPropagation never
-		 * reach it) matches the rows that open a conversation — session rows
-		 * by their data-row-key "session:<id>" prefix, search-result rows as
-		 * the role=treeitem rows without one — climbs to the frame through
-		 * any slot-wrapper depth, and toggles the sidebar closed through the
-		 * regular layout action. The listener acts only while the mobile
-		 * breakpoint matches and the sidebar is open, so desktop keeps the
-		 * sidebar beside the conversation and a collapsed drawer never
-		 * re-expands from a row pick.
+		 * On that same mobile layout, every navigation dismisses the drawer:
+		 * the drawer covers the whole viewport there, so leaving it open
+		 * would hide the conversation just opened — whether the pick was a
+		 * row in the tree or a search result, or a brand-new Session started
+		 * from the drawer's New session button or a Workspace row's action.
+		 * Rather than sniffing the many buttons that start a navigation (and
+		 * the shipped row actions that stopPropagation, which a document
+		 * listener never sees), the dismissal follows the Workspace UI's own
+		 * navigation record: `uiWorkspace.selection` is a snapshot store
+		 * that the Workspace service republishes on every replaceMain and
+		 * clearMain — one notification per main-view change, whatever
+		 * triggered it. The subscription acts only while the mobile
+		 * breakpoint matches and the sidebar is open (read from the frame's
+		 * published `data-sidebar-collapsed`), so desktop keeps the sidebar
+		 * beside the conversation and a collapsed drawer never re-expands
+		 * from a navigation. Notifications closer together than the settle
+		 * window are folded into one dismissal, so a navigation that
+		 * republishes twice cannot toggle the drawer back open.
 		 */
 		const CSS = [
 			'[data-sidebar-collapsed][data-rightbar-collapsed]{grid-template-columns:0px minmax(0px,1fr) minmax(0px,0px)!important}',
@@ -165,34 +170,16 @@ window.__ModuleLoader__.load({
 		const MOBILE_QUERY = '(max-width: 767px)';
 
 		/**
-		 * Whether a click landed on a row that opens a conversation: session
-		 * rows carry data-row-key="session:<id>" (tree and flat lists alike)
-		 * and search-result rows are the role=treeitem rows without a
-		 * data-row-key. Folder rows carry "workspace:…" keys, the overflow
-		 * and empty rows other keys, and panel rows are buttons without a
-		 * treeitem role, so none of them match.
-		 * @param el - candidate element.
-		 * @returns whether the element is a conversation-opening row.
+		 * The application frame: the element that publishes the sidebar track
+		 * template inline, identified by the sidebar root's drag row anywhere
+		 * beneath it (the slot system wraps the root in a display:contents
+		 * div, so the drag row is the stable landmark at any wrapper depth).
+		 * The frame carries `data-sidebar-collapsed` exactly while the
+		 * sidebar is hidden; its absence means the column is open.
+		 * @returns the frame element, or null before the shell mounts.
 		 */
-		const isSessionRow = (el) => {
-			const key = el.getAttribute('data-row-key');
-			if (key !== null) return key.startsWith('session:');
-			return el.getAttribute('role') === 'treeitem';
-		};
-
-		/**
-		 * The frame owning a row: climb to the ancestor carrying the inline
-		 * grid-template-columns track template. The slot system inserts a
-		 * display:contents wrapper between the sidebar column and the root,
-		 * so the climb cannot assume a fixed depth.
-		 * @param row - a row inside the sidebar.
-		 * @returns the frame element, or null.
-		 */
-		function frameOfSidebarRow(row) {
-			for (let node = row.parentElement; node instanceof Element; node = node.parentElement) {
-				if ((node.getAttribute('style') ?? '').includes('grid-template-columns')) return node;
-			}
-			return null;
+		function frameElement() {
+			return document.querySelector('div[style*="grid-template-columns"]:has(div[data-window-drag])');
 		}
 
 		/**
@@ -312,32 +299,28 @@ window.__ModuleLoader__.load({
 						observer.disconnect();
 					};
 				}, 'mobile-sidebar: sidebar width capture');
-				ctx.effect(() => {
-					const layout = ctx.layout;
-					if (typeof layout?.toggleSidebar !== 'function' || typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
+				ctx.inject(['uiWorkspace'], (scope) => {
+					const selection = scope.uiWorkspace?.selection;
+					if (selection === null || selection === undefined || typeof selection.subscribe !== 'function') return;
+					if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+					if (typeof ctx.layout?.toggleSidebar !== 'function') return;
 					const mobile = window.matchMedia(MOBILE_QUERY);
-					const onPick = (event) => {
-						const target = event.target;
-						if (!(target instanceof Element)) return;
-						let row = null;
-						for (let node = target; node instanceof Element; node = node.parentElement) {
-							if (isSessionRow(node)) {
-								row = node;
-								break;
-							}
-						}
-						if (row === null || !mobile.matches) return;
-						const frame = frameOfSidebarRow(row);
-						if (frame === null || frame.hasAttribute('data-sidebar-collapsed')) return;
-						const column = frame.firstElementChild;
-						if (column === null || !column.contains(row)) return;
-						layout.toggleSidebar();
-					};
-					document.addEventListener('click', onPick);
-					return () => {
-						document.removeEventListener('click', onPick);
-					};
-				}, 'mobile-sidebar: dismiss drawer on pick');
+					let dismissedAt = 0;
+					scope.effect(() => {
+						const off = selection.subscribe(() => {
+							if (!mobile.matches) return;
+							const now = Date.now();
+							if (now - dismissedAt < 400) return;
+							const frame = frameElement();
+							if (frame === null || frame === undefined || frame.hasAttribute('data-sidebar-collapsed')) return;
+							dismissedAt = now;
+							ctx.layout.toggleSidebar();
+						});
+						return () => {
+							off();
+						};
+					}, 'mobile-sidebar: dismiss drawer on navigation');
+				});
 			}
 		};
 	}

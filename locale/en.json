@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Hidden Collapsed Sidebar",
-    "description": "Collapsing the sidebar hides the 56px icon rail completely with a track-synchronized glide matching the right sidebar; both brand artworks are removed, and exactly one toggle is visible at any time — the sidebar's own, aligned with the conversation header's button, while expanded, the header's matching one while fully hidden. Below 768px the sidebar clones the right dock's mobile presentation: it expands as a slide-in overlay covering the frame, never squeezes the conversation, and dismisses itself when a conversation is picked; desktop keeps the original track push and expanded width."
+    "title": "Fully Collapsible Left Sidebar",
+    "description": "The left sidebar collapses to nothing — no leftover icon rail, no reserved space — and glides in and out just like the right sidebar. The brand icon and wordmark are gone, and the toggle lives in one place only: at the top of the sidebar while it is open, at the top of the conversation once it is hidden. On phones it slides over the conversation as a full-screen panel and closes itself after you pick or start a session; on desktop nothing changes — same width, and the conversation makes room as before."
   }
 }
